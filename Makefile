@@ -3,7 +3,7 @@ all: libwpa-latest libwpa-latest/wpa_supplicant/libwpa_client.a main.o
 	gcc -o p2phostd main.o libwpa-latest/wpa_supplicant/libwpa_client.a
 
 libwpa-latest:
-	test -L libwpa-latest || ln -s wpa_supplicant-*.* libwpa-latest
+	test -e libwpa-latest || ln -sf wpa_supplicant-*.* libwpa-latest
 
 libwpa-latest/wpa_supplicant/.config: wpa_supplicant.config
 	cp wpa_supplicant.config libwpa-latest/wpa_supplicant/.config

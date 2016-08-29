@@ -4,12 +4,14 @@ Handle WiFi P2P connections via wpa_supplicant
 
 ####Build:
 
-We depend on libwpa_client.a in wpa_supplicant release.
-Download and unpack the lastest release, last seen at:
-
-  http://w1.fi/releases/wpa_supplicant-2.5.tar.gz
+We depend on libwpa_client.a in wpa_supplicant tree.
 
 ```
+$ rm -r wpa_supplicant-2.x # if previous version installed
+$ curl -sLO http://w1.fi/releases/wpa_supplicant-2.5.tar.gz # or later release
+$ tar -xf wpa_supplicant-2.5.tar.gz
+$ rm wpa_supplicant-2.5.tar.gz
+
 $ make
 ```
 
@@ -33,5 +35,5 @@ p2p_go_intent=15
 Listen for 75ms every 1.5s. Accept 11111111 as PIN code from connecting device:
 
 ```
-./p2phostd /run/wpa_supplicant/p2p0 75 1500 11111111
+$ ./p2phostd /run/wpa_supplicant/p2p0 75 1500 11111111
 ```
