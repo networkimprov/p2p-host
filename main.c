@@ -7,10 +7,23 @@
 #include "wpa_ctrl.h"
 
 
+void sendRequest(struct wpa_ctrl* iIf, char* iSend) {
+  fprintf(stdout, ">>> %s\n", iSend);
+  char aResp[64];
+  size_t aRespN = sizeof aResp - 1;
+  int aErr = wpa_ctrl_request(iIf, iSend, strlen(iSend), aResp, &aRespN, NULL);
+  if (aErr)
+    exit(3);
+  aResp[aRespN] = '\0';
+  fprintf(stdout, "    %s", aResp);
+}
+
+
 int main(int iArgc, char* iArgv[]) {
 
   const size_t kPds = strlen(P2P_EVENT_PROV_DISC_SHOW_PIN);
   const size_t kTrm = strlen(WPA_EVENT_TERMINATING);
+  const size_t kDsc = strlen(WPA_EVENT_DISCONNECTED);
 
   if (iArgc < 5) {
     fprintf(stderr, "Usage: %s path-to-socket listen-period-ms listen-interval-ms 8-digit-pin\n", iArgv[0]);
@@ -59,17 +72,12 @@ int main(int iArgc, char* iArgv[]) {
 
   char aSend[256];
   char aResp[1024];
-  size_t aRespN = sizeof aResp - 1;
+  size_t aRespN;
 
   sprintf(aSend, "P2P_EXT_LISTEN %d %d", kPeriod, kInterval);
-  fprintf(stdout, "req: %s\n", aSend);
-  aErr = wpa_ctrl_request(aIfSend, aSend, strlen(aSend), aResp, &aRespN, NULL);
-  if (aErr)
-    return 3;
-  aResp[aRespN] = '\0';
-  fprintf(stdout, "   : %s\n", aResp);
+  sendRequest(aIfSend, aSend);
 
-  while (1) {
+  for (int aRun=1; aRun; ) {
     aErr = select(aRfd+1, &aFds, NULL, NULL, NULL);
     if (aErr == -1) {
       if (errno == EINTR)
@@ -82,33 +90,26 @@ int main(int iArgc, char* iArgv[]) {
       if (aErr)
         return 5;
       aResp[aRespN] = '\0';
+      fprintf(stdout, "    %s\n", aResp);
 
-      if (!strncmp(aResp+3, P2P_EVENT_PROV_DISC_SHOW_PIN, aRespN-3 < kPds ? aRespN-3 : kPds)) {
+      if        (!strncmp(aResp+3, P2P_EVENT_PROV_DISC_SHOW_PIN, aRespN-3 < kPds ? aRespN-3 : kPds)) {
         char* aData = aResp + 3 + kPds;
-        fprintf(stdout, "PDS: %s\n", aData);
         char* aSpc = strchr(aData, ' ');
         if (aSpc) *aSpc = '\0';
         sprintf(aSend, "P2P_CONNECT %s %d display go_intent=0", aData, kPin);
-        fprintf(stdout, "req: %s\n", aSend);
-        aRespN = sizeof aResp - 1;
-        aErr = wpa_ctrl_request(aIfSend, aSend, strlen(aSend), aResp, &aRespN, NULL);
-        if (aErr)
-          return 6;
-        aResp[aRespN] = '\0';
-        fprintf(stdout, "   : %s\n", aResp);
-      } else
-      if (!strncmp(aResp+3, WPA_EVENT_TERMINATING, aRespN-3 < kTrm ? aRespN-3 : kTrm)) {
-        fprintf(stdout, "TRM: %s\n", aResp+3+kTrm);
+        sendRequest(aIfSend, aSend);
+      } else if (!strncmp(aResp+3, WPA_EVENT_DISCONNECTED, aRespN-3 < kDsc ? aRespN-3 : kDsc)) {
+        sprintf(aSend, "DISCONNECT");
+      } else if (!strncmp(aResp+3, WPA_EVENT_TERMINATING, aRespN-3 < kTrm ? aRespN-3 : kTrm)) {
+        aRun = 0;
         break;
-      } else {
-        fprintf(stdout, "###: %s\n", aResp);
       }
     }
   }
 
   aErr = wpa_ctrl_detach(aIfRecv);
   if (aErr)
-    return 7;
+    return 6;
 
   wpa_ctrl_close(aIfRecv);
   wpa_ctrl_close(aIfSend);
